@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <Version>1.1.1.2</Version>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+    <RootNamespace>NarayaniInfotec.DataLite</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>Ni_Logo2.ico</ApplicationIcon>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>Lightweight DB-agnostic CRUD &amp; SP helper</Title>
+    <Copyright>All rights are reserved</Copyright>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <AssemblyTitle>NarayaniInfotec.DataLite</AssemblyTitle>
+    <AssemblyVersion>1.0.1</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <PackageReleaseNotes>Added generic CRUD operations (Insert, Update, Delete, Select).
+Introduced stored procedure execution support.
+Added transaction scope handling.
+Improved null-safety and API documentation.
+Enhanced database-agnostic design using DbProviderFactories.</PackageReleaseNotes>
+  </PropertyGroup>
+	<ItemGroup>
+	  <Content Include="Ni_Logo2.ico" />
+	</ItemGroup>
+	<ItemGroup>
+	  <None Include="C:\dATA\Thane Projects\Copy of NewProposal\NILogo.JPG">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
+	</ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="" />
+		<None Include="CHANGELOG.md" Pack="true" PackagePath="" />
+	</ItemGroup>
+	
+</Project>
