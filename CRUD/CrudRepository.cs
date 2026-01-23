@@ -56,7 +56,7 @@ namespace NarayaniInfotec.CRUD
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = sql;
 
-                AddParams(cmd, parameters);
+                AddParameters(cmd, parameters);
 
                 conn.Open();
                 return cmd.ExecuteNonQuery();
@@ -270,17 +270,27 @@ namespace NarayaniInfotec.CRUD
         /// <param name="whereClause"></param>
         /// <param name="whereParams"></param>
         /// <returns></returns>
-        public int Update(string tableName, IDictionary<string, object> fields, string whereClause,
-                            IDictionary<string, object> whereParams)
+        public int Update(string tableName, IDictionary<string, object> fields, string whereClause,IDictionary<string, object> whereParams)
         {
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                var setClause =
-                string.Join(",", fields.Keys.Select(k => $"{k}=@{k}"));
+            {
+                if (string.IsNullOrWhiteSpace(whereClause))
+                    throw new ArgumentException("WHERE clause is required for UPDATE.");
+
+                // SET clause with prefixed params
+                var setClause = string.Join(", ",
+                    fields.Keys.Select(k => $"{k} = @set_{k}"));
 
                 string sql = $"UPDATE {tableName} SET {setClause} WHERE {whereClause}";
 
-                var allParams = fields
+                // Build SET parameters
+                var setParams = fields.ToDictionary(
+                    k => $"@set_{k.Key}",
+                    v => v.Value ?? DBNull.Value
+                );
+
+                // Merge SET + WHERE params
+                var allParams = setParams
                     .Concat(whereParams)
                     .ToDictionary(k => k.Key, v => v.Value);
 
@@ -288,9 +298,11 @@ namespace NarayaniInfotec.CRUD
             }
             catch (Exception ex)
             {
-                throw new DataLiteException($"Update failed on '{tableName}'.", ex);
+                throw new DataLiteException(
+                    $"Update failed on '{tableName}'. SQL: {ex.Message}", ex);
             }
         }
+
 
         /// <summary>
         /// Deletes records from the specified table based on the provided WHERE condition.
@@ -302,9 +314,11 @@ namespace NarayaniInfotec.CRUD
         public int Delete(string tableName, string whereClause, IDictionary<string, object> whereParams)
         {
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                string sql =
-                    $"DELETE FROM {tableName} WHERE {whereClause}";
+            {
+                if (string.IsNullOrWhiteSpace(whereClause))
+                    throw new ArgumentException("WHERE clause is required for DELETE.");
+
+                string sql = $"DELETE FROM {tableName} WHERE {whereClause}";
 
                 return Execute(sql, whereParams);
             }
@@ -312,7 +326,7 @@ namespace NarayaniInfotec.CRUD
             {
                 throw new DataLiteException($"Delete failed on '{tableName}'.", ex);
             }
-}
+        }
 
         /// <summary>
         /// Executes a SELECT query and returns the result as a DataTable.
@@ -396,13 +410,19 @@ namespace NarayaniInfotec.CRUD
         /// <param name="parameters"></param>
         private static void AddParameters(DbCommand cmd, IDictionary<string, object>? parameters)
         {
-            if (parameters == null) return;
+            if (parameters == null || parameters.Count == 0)
+                return;
 
             foreach (var p in parameters)
             {
                 var param = cmd.CreateParameter();
-                param.ParameterName = "@" + p.Key;
+
+                param.ParameterName = p.Key.StartsWith("@")
+                    ? p.Key
+                    : "@" + p.Key;
+
                 param.Value = p.Value ?? DBNull.Value;
+
                 cmd.Parameters.Add(param);
             }
         }
