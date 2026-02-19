@@ -24,12 +24,6 @@ Enhanced database-agnostic design using DbProviderFactories.</PackageReleaseNote
 	<ItemGroup>
 	  <Content Include="Ni_Logo2.ico" />
 	</ItemGroup>
-	<ItemGroup>
-	  <None Include="C:\dATA\Thane Projects\Copy of NewProposal\NILogo.JPG">
-	    <Pack>True</Pack>
-	    <PackagePath>\</PackagePath>
-	  </None>
-	</ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
