@@ -536,7 +536,7 @@ namespace NarayaniInfotec.CRUD
                 using var conn = _db.CreateConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = sql;
-                AddParams(cmd, parameters);
+                AddParameters(cmd, parameters);
                 conn.Open();
                 using var reader = cmd.ExecuteReader();
                 return DataReaderMapper.MapToList<T>(reader);
@@ -555,7 +555,7 @@ namespace NarayaniInfotec.CRUD
                 using var conn = _db.CreateConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = sql;
-                AddParams(cmd, parameters);
+                AddParameters(cmd, parameters);
                 await conn.OpenAsync();
                 using var reader = await cmd.ExecuteReaderAsync();
                 return DataReaderMapper.MapToList<T>(reader);
