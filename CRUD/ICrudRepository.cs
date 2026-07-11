@@ -126,5 +126,15 @@ namespace NarayaniInfotec.CRUD
 
         int InsertAndReturnId(string tableName, IDictionary<string, object> values, string identityColumn = "Id");   //Added. - 01st Jan. 2026 0548
 
+        // Add these methods for return List<T> and Task<List<T>> for SelectList, SelectListAsync and QueryList -11 July 2026
+        List<T> SelectList<T>(string tableName, string columns = "*", string? whereClause = null,
+                             IDictionary<string, object>? whereParams = null) where T : new();
+
+        Task<List<T>> SelectListAsync<T>(string tableName, string columns = "*", string? whereClause = null,
+                                        IDictionary<string, object>? whereParams = null) where T : new();
+
+        List<T> QueryList<T>(string sql, Dictionary<string, object> parameters) where T : new();
+
+        Task<List<T>> QueryListAsync<T>(string sql, Dictionary<string, object> parameters) where T : new();
     }
 }

@@ -27,6 +27,7 @@ Enhanced database-agnostic design using DbProviderFactories.</PackageReleaseNote
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+  <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
   </ItemGroup>
 
 	<ItemGroup>
