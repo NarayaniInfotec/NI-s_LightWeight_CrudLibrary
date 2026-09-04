@@ -1,4 +1,7 @@
-﻿using System.Data;
+﻿using NarayaniInfotec.CRUD;
+using NarayaniInfotec.StoredProcedures;
+using System;
+using System.Data;
 using System.Data.Common;
 
 namespace NarayaniInfotec.Core
@@ -16,12 +19,32 @@ namespace NarayaniInfotec.Core
     /// </list>
     /// This allows DataLite to work with different database engines
     /// without changing the core CRUD logic.
+    /// builder.Services.AddScoped&lt;IStoredProcedure, StoredProcedure&gt;();
+    /// </code>
+    /// Because <c>IDatabase</c> is Scoped, both <c>CrudRepository</c> and
+    /// <c>StoredProcedure</c> receive the <em>same</em> <c>IDatabase</c> instance
+    /// within a request, and therefore share the same physical connection.
     /// </remarks>
-    public interface IDatabase
+    public interface IDatabase : IDisposable
     {
+        // ----------------------------------------------------------------
+        // Shared connection — opened once per DI scope, reused by all ops
+        // ----------------------------------------------------------------
+
         /// <summary>
-        /// Creates and returns a new database connection.
+        /// A lazily-opened connection that is shared across all operations
+        /// within the current DI scope (e.g., a single HTTP request).
+        ///
+        /// The connection is opened on first access and disposed when the
+        /// <see cref="IDatabase"/> instance itself is disposed by the DI container.
         /// </summary>
+        DbConnection SharedConnection { get; }
+
+        // ----------------------------------------------------------------
+        // Factory methods — kept for backward compatibility and for code
+        // that deliberately wants an isolated, short-lived connection
+        // (e.g. DbTransactionScope, bulk operations, long-running scripts).
+        // ----------------------------------------------------------------
         /// <returns>
         /// An unopened <see cref="DbConnection"/> instance configured
         /// with the appropriate connection string.

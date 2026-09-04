@@ -1,14 +1,12 @@
 ﻿using NarayaniInfotec.Core;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 
 namespace NarayaniInfotec.Transactions
 {
     /// <summary>
-    /// Provides a lightweight transactional scope for database operations.
-    /// </summary>
+    /// Provides a lightweight transactional scope that wraps the
+    /// <see cref="IDatabase.SharedConnection"/> in a database transaction.
     /// <remarks>
     /// This class simplifies transaction handling by managing a shared
     /// <see cref="DbConnection"/> and <see cref="DbTransaction"/> lifecycle.
@@ -18,36 +16,48 @@ namespace NarayaniInfotec.Transactions
     public class DbTransactionScope : IDisposable
     {
         /// <summary>Gets the active database connection associated with the transaction.</summary>
+        /// </summary>
         public DbConnection Connection { get; }
 
-        /// <summary>Gets the active database transaction.</summary>
+        /// <summary>The active transaction.</summary>
         public DbTransaction Transaction { get; }
 
-        /// <summary>Initializes a new instance of the <see cref="DbTransactionScope"/> class
-        /// and begins a database transaction.</summary>
+        private bool _disposed;
+
+        /// <summary>
+        /// Begins a transaction on <see cref="IDatabase.SharedConnection"/>.
+        /// The connection is already open — no Open() call is made here.
+        /// </summary>
+        /// <param name="db">
         /// <param name="db">An implementation of <see cref="IDatabase"/> used to create the database connection.</param>
-        /// <exception cref="ArgumentNullException">Thrown when the provided database instance is null.</exception>
+        /// <see cref="NarayaniInfotec.CRUD.CrudRepository"/> and
+        /// <see cref="NarayaniInfotec.StoredProcedures.StoredProcedure"/> within
+        /// the current DI scope.
+        /// </param>
         public DbTransactionScope(IDatabase db)
         {
-            Connection = db.CreateConnection();
-            Connection.Open();
+            if (db == null) throw new ArgumentNullException(nameof(db));
+
+            Connection = db.SharedConnection;   // already open
             Transaction = Connection.BeginTransaction();
         }
 
-        /// <summary>Commits the current database transaction.</summary>
+        /// <summary>Commits the active transaction.</summary>
         public void Commit() => Transaction.Commit();
 
         /// <summary>Rolls back the current database transaction.</summary>
         public void Rollback() => Transaction.Rollback();
 
-        /// <summary>Releases all resources used by the transaction scope.</summary>
-        /// <remarks>If <see cref="Commit"/> is not explicitly called,
-        /// the transaction should be rolled back by the consumer before disposal.</remarks>
+        /// Disposes the transaction object only.
+        /// The underlying connection is owned by <see cref="IDatabase"/>
+        /// and will be disposed by the DI container at scope end.
+        /// </summary>
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             Transaction?.Dispose();
-            Connection?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
-
 }
