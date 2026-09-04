@@ -1,20 +1,18 @@
 ﻿using NarayaniInfotec.Core;
 using NarayaniInfotec.DataLite.Core;
+using NarayaniInfotec.DataLite.DataMapper;
 using NarayaniInfotec.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Reflection;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace NarayaniInfotec.CRUD
 {
     /// <summary>
-    /// Default implementation of <see cref="ICrudRepository"/>
+    /// Default implementation of <see cref="ICrudRepository"/>.
     /// Executes database-agnostic CRUD operations using
     /// an <see cref="IDatabase"/> abstraction.
     /// </summary>
@@ -32,36 +30,44 @@ namespace NarayaniInfotec.CRUD
         /// creating connections and commands.
         /// </param>
         /// <param name="logger">
-        /// Optional logger for tracing queries and errors.
-        /// </param>
-        /// </summary>
-      
+        /// <param name="logger">Optional query logger.</param>
         public CrudRepository(IDatabase db, IDbLogger? logger = null)
         {
-            _db = db;
+            _db = db ?? throw new ArgumentNullException(nameof(db));
             _logger = logger;
         }
 
+        // ----------------------------------------------------------------
+        // Shared-connection helper — used by every operation below
+        // ----------------------------------------------------------------
+
         /// <summary>
-        /// Executes an SQL statement against a connection object.
+        /// Returns a command bound to the shared connection.
+        /// The connection is already open; callers must NOT open or dispose it.
         /// </summary>
-        /// <param name="sql">A SQL statement.</param>
-        /// <param name="parameters">Parameters collection in Dictionary object.</param>
-        /// <returns>The number of rows affected.</returns>
+        private DbCommand CreateSharedCommand(string sql,
+                                              CommandType type = CommandType.Text)
+        {
+            var conn = _db.SharedConnection;   // already open
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.CommandType = type;
+            return cmd;                        // cmd.Connection is set automatically
+        }
+
+        // ----------------------------------------------------------------
+        // Execute / ExecuteAsync
+        // ----------------------------------------------------------------
+
+        /// <inheritdoc/>
         public int Execute(string sql, Dictionary<string, object> parameters)
         {
-
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
+            {
                 _logger?.Log(sql, parameters);
 
-                using var conn = _db.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
-
+                using var cmd = CreateSharedCommand(sql);
                 AddParameters(cmd, parameters);
-
-                conn.Open();
                 return cmd.ExecuteNonQuery();
             }
             catch (Exception ex)
@@ -70,92 +76,17 @@ namespace NarayaniInfotec.CRUD
             }
         }
 
-        /// <summary>
-        /// Executes the query and returns the first column of the first row in the result set returned by the query. All other columns and the rows are ignored.
-        /// </summary>
-        /// <param name="sql">A SQL statement.</param>
-        /// <param name="parameters">Parameters collection in Dictionary object.</param>
-        /// <returns>Returns the first column of the first row in the result set.</returns>
-        public int ExecuteScalar(string sql, Dictionary<string, object> parameters)
-        {   //Newly added. - 01st Jan. 2026
-
-            try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                _logger?.Log(sql, parameters);
-
-                using var conn = _db.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
-
-                AddParams(cmd, parameters);
-
-                conn.Open();
-                return (int)cmd.ExecuteScalar();
-            }
-            catch (Exception ex)
-            {
-                throw new DataLiteException($"Execute Scalar failed on '{sql}'.", ex);
-            }
-        }
-
-        /// <summary>
-        /// An ansyncronous version of DBCommnd.ExecuteScalar() which executes a SQL statement against a connection object.
-        /// Invokes DBCommnd.ExecuteScalarAsync() with CancellationToken.None.
-        /// </summary>
-        /// <param name="sql">A SQL statement</param>
-        /// <param name="parameters">Parameters collection in Dictionary object</param>
-        /// <returns>A task representing the asyncronous operation</returns>
-        public async Task<int> ExecuteScalarAsync(string sql, Dictionary<string, object> parameters)
-        {   //Newly added. - 01st Jan. 2026
-
-            try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                _logger?.Log(sql, parameters);
-
-                // Ensure _db.CreateConnection() returns a DbConnection 
-                // that supports async operations (like SqlConnection)
-                using var conn = _db.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
-
-                AddParams(cmd, parameters);
-
-                // Use OpenAsync to prevent blocking the thread
-                await conn.OpenAsync();
-
-                // ExecuteScalarAsync returns an 'object?'. 
-                // We safely convert it to int, handling potential nulls.
-                var result = await cmd.ExecuteScalarAsync();
-
-                return result != null ? Convert.ToInt32(result) : 0;
-            }
-            catch (Exception ex)
-            {
-                throw new DataLiteException($"Execute Scalar Async failed on '{sql}'.", ex);
-            }
-        }
-      
-        /// <summary>
-        /// An ansyncronous version of DBCommnd.ExecuteNonQuery() which executes a SQL statement against a connection object.
-        /// Invokes DBCommnd.ExecuteNonQueryAsync() with CancellationToken.None. 
-        /// </summary>
-        /// <param name="sql">A SQL statement</param>
-        /// <param name="parameters">Parameters collection in Dictionary object</param>
-        /// <returns>A task representing the asyncronous operation</returns>
-        public async Task<int> ExecuteAsync(string sql, Dictionary<string, object> parameters)
+        /// <inheritdoc/>
+        public async Task<int> ExecuteAsync(string sql,
+                                            Dictionary<string, object> parameters)
         {
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
+            {
                 _logger?.Log(sql, parameters);
 
-            using var conn = _db.CreateConnection();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-
-            AddParams(cmd, parameters);
-
-            await conn.OpenAsync();
-            return await cmd.ExecuteNonQueryAsync();
+                using var cmd = CreateSharedCommand(sql);
+                AddParameters(cmd, parameters);
+                return await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception ex)
             {
@@ -163,8 +94,52 @@ namespace NarayaniInfotec.CRUD
             }
         }
 
-        /// <summary>
-        /// Executes provided query with parameters.
+        // ----------------------------------------------------------------
+        // ExecuteScalar / ExecuteScalarAsync
+        // ----------------------------------------------------------------
+
+        /// <inheritdoc/>
+        public int ExecuteScalar(string sql, Dictionary<string, object> parameters)
+        {
+            try
+            {
+                _logger?.Log(sql, parameters);
+
+                using var cmd = CreateSharedCommand(sql);
+                AddParameters(cmd, parameters);
+
+                var result = cmd.ExecuteScalar();
+                return result != null ? Convert.ToInt32(result) : 0;
+            }
+            catch (Exception ex)
+            {
+                throw new DataLiteException($"Execute Scalar failed on '{sql}'.", ex);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> ExecuteScalarAsync(string sql,
+                                                   Dictionary<string, object> parameters)
+        {
+            try
+            {
+                _logger?.Log(sql, parameters);
+
+                using var cmd = CreateSharedCommand(sql);
+                AddParameters(cmd, parameters);
+
+                var result = await cmd.ExecuteScalarAsync();
+                return result != null ? Convert.ToInt32(result) : 0;
+            }
+            catch (Exception ex)
+            {
+                throw new DataLiteException($"Execute Scalar Async failed on '{sql}'.", ex);
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Query / QueryAsync
+        // ----------------------------------------------------------------
         /// </summary>
         /// <param name="sql">A SQL statement to be executed.</param>
         /// <param name="parameters">Collection of parameters in Dictionary object.</param>
@@ -172,24 +147,20 @@ namespace NarayaniInfotec.CRUD
         public DataTable Query(string sql, Dictionary<string, object> parameters)
         {
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
+            {
                 _logger?.Log(sql, parameters);
 
-            using var conn = _db.CreateConnection();
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
+                using var cmd = CreateSharedCommand(sql);
+                using var adapter = DbProviderFactories
+                                        .GetFactory(_db.SharedConnection)
+                                        .CreateDataAdapter()!;
 
-            AddParams(cmd, parameters);
+                AddParameters(cmd, parameters);
+                adapter.SelectCommand = cmd;
 
-            using var da = DbProviderFactories
-                .GetFactory(conn)
-                .CreateDataAdapter();
-
-            da.SelectCommand = cmd;
-
-            var dt = new DataTable();
-            da.Fill(dt);
-            return dt;
+                var dt = new DataTable();
+                adapter.Fill(dt);
+                return dt;
             }
             catch (Exception ex)
             {
@@ -197,63 +168,28 @@ namespace NarayaniInfotec.CRUD
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
-        [Obsolete]
-        public Task<DataTable> QueryAsync(string sql, Dictionary<string, object> parameters)
-        {
-            throw new NotImplementedException();
-        }
+        /// <inheritdoc/>
+        [Obsolete("Use QueryListAsync<T> for async data retrieval.")]
+        public Task<DataTable> QueryAsync(string sql,
+                                          Dictionary<string, object> parameters)
+            => throw new NotImplementedException();
 
-        /// <summary>
-        /// Adds new parameters in given DBCommand.
-        /// </summary>
-        /// <param name="cmd"></param>
-        /// <param name="parameters"></param>
-        private void AddParams(DbCommand cmd, Dictionary<string, object> parameters)
-        {
-            try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                if (parameters == null) return;
+        // ----------------------------------------------------------------
+        // Insert / Update / Delete / Select
+        // ----------------------------------------------------------------
 
-            foreach (var p in parameters)
-            {
-                var param = cmd.CreateParameter();
-                param.ParameterName = "@" + p.Key;
-                param.Value = p.Value ?? DBNull.Value;
-                cmd.Parameters.Add(param);
-            }
-            }
-            catch (Exception ex)
-            {
-                throw new DataLiteException($"Add Parameter failed on '{cmd}'.", ex);
-            }
-        }
-
-        /// <summary>
-        /// Inserts a record into the specified table using
-        /// parameterized SQL to prevent injection attacks.
-        /// </summary>
-        /// <param name="tableName">Target table name.</param>
         /// <param name="fields">Dictionary of column names and values.
         /// Null values are converted to DBNull.</param>
-        /// <returns></returns>
-        //New methods/ functions. - 21st Dec. 2025 2007
+        /// <inheritdoc/>
         public int Insert(string tableName, IDictionary<string, object> fields)
         {
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                var columns = string.Join(",", fields.Keys);
-                var parameters = string.Join(",", fields.Keys.Select(k => "@" + k));
+            {
+                var columns = string.Join(", ", fields.Keys);
+                var paramNames = string.Join(", ", fields.Keys.Select(k => "@" + k));
+                var sql = $"INSERT INTO {tableName} ({columns}) VALUES ({paramNames})";
 
-                string sql = $"INSERT INTO {tableName} ({columns}) VALUES ({parameters})";
-
-                return Execute(sql, fields);
+                return ExecuteInternal(sql, fields);
             }
             catch (Exception ex)
             {
@@ -262,42 +198,31 @@ namespace NarayaniInfotec.CRUD
         }
 
         /// <summary>
-        /// Updates records in the specified table.
-        /// </summary>
-        /// <remarks>
-        /// Only columns provided in the fields dictionary
-        /// will be updated.
-        /// </remarks>
-        /// <param name="tableName">Target table name.</param>
-        /// <param name="fields"></param>
-        /// <param name="whereClause"></param>
-        /// <param name="whereParams"></param>
-        /// <returns></returns>
-        public int Update(string tableName, IDictionary<string, object> fields, string whereClause,IDictionary<string, object> whereParams)
+        /// <inheritdoc/>
+        public int Update(string tableName,
+                          IDictionary<string, object> fields,
+                          string whereClause,
+                          IDictionary<string, object> whereParams)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(whereClause))
                     throw new ArgumentException("WHERE clause is required for UPDATE.");
 
-                // SET clause with prefixed params
                 var setClause = string.Join(", ",
                     fields.Keys.Select(k => $"{k} = @set_{k}"));
 
-                string sql = $"UPDATE {tableName} SET {setClause} WHERE {whereClause}";
+                var sql = $"UPDATE {tableName} SET {setClause} WHERE {whereClause}";
 
-                // Build SET parameters
                 var setParams = fields.ToDictionary(
                     k => $"@set_{k.Key}",
-                    v => v.Value ?? DBNull.Value
-                );
+                    v => v.Value ?? DBNull.Value as object);
 
-                // Merge SET + WHERE params
                 var allParams = setParams
                     .Concat(whereParams)
                     .ToDictionary(k => k.Key, v => v.Value);
 
-                return Execute(sql, allParams);
+                return ExecuteInternal(sql, allParams);
             }
             catch (Exception ex)
             {
@@ -306,24 +231,18 @@ namespace NarayaniInfotec.CRUD
             }
         }
 
-
-        /// <summary>
-        /// Deletes records from the specified table based on the provided WHERE condition.
-        /// </summary>
-        /// <param name="tableName"></param>
-        /// <param name="whereClause"></param>
-        /// <param name="whereParams"></param>
-        /// <returns></returns>
-        public int Delete(string tableName, string whereClause, IDictionary<string, object> whereParams)
+        /// <inheritdoc/>
+        public int Delete(string tableName,
+                          string whereClause,
+                          IDictionary<string, object> whereParams)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(whereClause))
                     throw new ArgumentException("WHERE clause is required for DELETE.");
 
-                string sql = $"DELETE FROM {tableName} WHERE {whereClause}";
-
-                return Execute(sql, whereParams);
+                var sql = $"DELETE FROM {tableName} WHERE {whereClause}";
+                return ExecuteInternal(sql, whereParams);
             }
             catch (Exception ex)
             {
@@ -337,207 +256,111 @@ namespace NarayaniInfotec.CRUD
         /// <remarks>
         /// This method supports optional filtering via WHERE clause and parameterized inputs.
         /// </remarks>
-        /// <param name="tableName">Target table name.</param>
-        /// <param name="columns">Comma-separated list of columns to select.
-        /// Use "*" to select all columns.</param>
-        /// <param name="whereClause">Optional SQL WHERE condition without the 'WHERE' keyword.</param>
-        /// <param name="whereParams">Optional parameters for the WHERE clause.</param>
-        /// <returns></returns>
-        public DataTable Select(string tableName, string columns = "*", string? whereClause = null,
-                        IDictionary<string, object>? whereParams = null)
+        public DataTable Select(string tableName,
+                                string columns = "*",
+                                string? whereClause = null,
+                                IDictionary<string, object>? whereParams = null)
         {
-            try { 
-                string sql = $"SELECT {columns} FROM {tableName}";
-
+            try
+            {
+                var sql = $"SELECT {columns} FROM {tableName}";
                 if (!string.IsNullOrWhiteSpace(whereClause))
                     sql += " WHERE " + whereClause;
 
-                return Query(sql, whereParams);
+                return QueryInternal(sql, whereParams);
             }
             catch (Exception ex)
             {
                 throw new DataLiteException($"Select failed for '{tableName}'.", ex);
             }
-}
+        }
 
         // --------------------
         // INTERNAL CORE METHODS
         // --------------------
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
-        private int Execute(string sql, IDictionary<string, object> parameters)
+        // InsertAndReturnId
+        // ----------------------------------------------------------------
+
+        /// <inheritdoc/>
+        public int InsertAndReturnId(string tableName,
+                                     IDictionary<string, object> values,
+                                     string identityColumn = "Id")
         {
-            using var conn = _db.CreateConnection();
-            using var cmd = conn.CreateCommand();
-
-            cmd.CommandText = sql;
-            AddParameters(cmd, parameters);
-
-            conn.Open();
-            return cmd.ExecuteNonQuery();
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
-        private DataTable Query(string sql, IDictionary<string, object>? parameters)
-        {
-            using var conn = _db.CreateConnection();
-            using var cmd = conn.CreateCommand();
-
-            cmd.CommandText = sql;
-            AddParameters(cmd, parameters);
-
-            using var adapter =
-                DbProviderFactories.GetFactory(conn).CreateDataAdapter();
-
-            adapter.SelectCommand = cmd;
-
-            var dt = new DataTable();
-            adapter.Fill(dt);
-            return dt;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="cmd"></param>
-        /// <param name="parameters"></param>
-        private static void AddParameters(DbCommand cmd, IDictionary<string, object>? parameters)
-        {
-            if (parameters == null || parameters.Count == 0)
-                return;
-
-            foreach (var p in parameters)
-            {
-                var param = cmd.CreateParameter();
-
-                param.ParameterName = p.Key.StartsWith("@")
-                    ? p.Key
-                    : "@" + p.Key;
-
-                param.Value = p.Value ?? DBNull.Value;
-
-                cmd.Parameters.Add(param);
-            }
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="cmd"></param>
-        /// <param name="name"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        private DbParameter CreateParameter(DbCommand cmd, string name, object value)
-        {
-
             try
-            { //Added Try..Catch block. - 01st Jan. 2026 0732
-                var param = cmd.CreateParameter();
-            param.ParameterName = "@" + name;
-            param.Value = value ?? DBNull.Value;
-            return param;
-            }
-            catch (Exception ex)
             {
-                throw new DataLiteException($"Create Parameter failed on parameter '{name}', Value '{value}'.", ex);
-            }
-        }
-
-        /// <summary>
-        /// Inserts record and returns inserted ID.
-        /// </summary>
-        /// <param name="tableName">Name of the database table where you want to insert record.</param>
-        /// <param name="values">List of values</param>
-        /// <param name="identityColumn">ID column which will be returned.</param>
-        /// <returns>Returns inserted ID.</returns>
-        /// <exception cref="ArgumentException"></exception>
-        public int InsertAndReturnId(string tableName, IDictionary<string, object> values, string identityColumn = "Id")
-        {
-            string sql = "";
-            try
-            { //Added Try..Catch block. - 01st Jan. 2026 0801
                 if (values == null || values.Count == 0)
-                     throw new ArgumentException("Insert values cannot be empty");
+                    throw new ArgumentException("Insert values cannot be empty.");
 
                 var columns = string.Join(", ", values.Keys);
-                var parameters = string.Join(", ", values.Keys.Select(k => "@" + k));
+                var paramNames = string.Join(", ", values.Keys.Select(k => "@" + k));
 
-                sql = $@"INSERT INTO {tableName} ({columns})
-                                VALUES ({parameters});
-                                SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                // SCOPE_IDENTITY() is SQL Server specific;
+                // for MySQL use LAST_INSERT_ID() instead.
+                var sql = $@"INSERT INTO {tableName} ({columns})
+                             VALUES ({paramNames});
+                             SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
-                using var conn = _db.CreateConnection();
-                using var cmd = _db.CreateCommand(sql, CommandType.Text);
-
-                cmd.Connection = conn;
-
-                foreach (var kv in values)
-                    cmd.Parameters.Add(CreateParameter(cmd, kv.Key, kv.Value));
-
-                conn.Open();
-                return Convert.ToInt32(cmd.ExecuteScalar());
+                return ExecuteScalar(sql,
+                    values.ToDictionary(k => k.Key, v => v.Value));
             }
             catch (Exception ex)
             {
-                throw new DataLiteException($"Insert And ReturnId failed on table '{tableName}'/n {sql}.", ex);
+                throw new DataLiteException(
+                    $"InsertAndReturnId failed on table '{tableName}'.", ex);
             }
-            
         }
 
-        #region HIGH PERFORMANCE GENERIC METHODS
+        // ----------------------------------------------------------------
+        // High-performance generic List<T> methods
+        // ----------------------------------------------------------------
 
-        /// <summary>
-        /// High Performance
-        /// Uses DbDataReader(forward-only, low memory) instead of DataTable.
-        /// 3x–6x faster than your old method for large datasets.
-        /// </summary>
-
-        public List<T> SelectList<T>(string tableName, string columns = "*", string? whereClause = null,
-                                   IDictionary<string, object>? whereParams = null) where T : new()
+        /// <inheritdoc/>
+        public List<T> SelectList<T>(string tableName,
+                                     string columns = "*",
+                                     string? whereClause = null,
+                                     IDictionary<string, object>? whereParams = null)
+            where T : new()
         {
-            string sql = $"SELECT {columns} FROM {tableName}";
+            var sql = $"SELECT {columns} FROM {tableName}";
             if (!string.IsNullOrWhiteSpace(whereClause))
                 sql += " WHERE " + whereClause;
 
             var parameters = whereParams?.ToDictionary(k => k.Key, v => v.Value)
-                ?? new Dictionary<string, object>();
+                             ?? new Dictionary<string, object>();
 
             return QueryList<T>(sql, parameters);
         }
 
-        public async Task<List<T>> SelectListAsync<T>(string tableName, string columns = "*", string? whereClause = null,
-                                                     IDictionary<string, object>? whereParams = null) where T : new()
+        /// <inheritdoc/>
+        public async Task<List<T>> SelectListAsync<T>(string tableName,
+                                                       string columns = "*",
+                                                       string? whereClause = null,
+                                                       IDictionary<string, object>? whereParams = null)
+            where T : new()
         {
-            string sql = $"SELECT {columns} FROM {tableName}";
+            var sql = $"SELECT {columns} FROM {tableName}";
             if (!string.IsNullOrWhiteSpace(whereClause))
                 sql += " WHERE " + whereClause;
 
             var parameters = whereParams?.ToDictionary(k => k.Key, v => v.Value)
-                ?? new Dictionary<string, object>();
+                             ?? new Dictionary<string, object>();
 
             return await QueryListAsync<T>(sql, parameters);
         }
 
-        public List<T> QueryList<T>(string sql, Dictionary<string, object> parameters) where T : new()
+        /// <inheritdoc/>
+        public List<T> QueryList<T>(string sql,
+                                    Dictionary<string, object> parameters)
+            where T : new()
         {
             try
             {
                 _logger?.Log(sql, parameters);
-                using var conn = _db.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
+
+                using var cmd = CreateSharedCommand(sql);
                 AddParameters(cmd, parameters);
-                conn.Open();
+
                 using var reader = cmd.ExecuteReader();
                 return DataReaderMapper.MapToList<T>(reader);
             }
@@ -547,108 +370,95 @@ namespace NarayaniInfotec.CRUD
             }
         }
 
-        public async Task<List<T>> QueryListAsync<T>(string sql, Dictionary<string, object> parameters) where T : new()
+        /// <inheritdoc/>
+        public async Task<List<T>> QueryListAsync<T>(string sql,
+                                                      Dictionary<string, object> parameters)
+            where T : new()
         {
             try
             {
                 _logger?.Log(sql, parameters);
-                using var conn = _db.CreateConnection();
-                using var cmd = conn.CreateCommand();
-                cmd.CommandText = sql;
+
+                using var cmd = CreateSharedCommand(sql);
                 AddParameters(cmd, parameters);
-                await conn.OpenAsync();
+
                 using var reader = await cmd.ExecuteReaderAsync();
                 return DataReaderMapper.MapToList<T>(reader);
             }
             catch (Exception ex)
             {
-                throw new DataLiteException($"QueryListAsync<{typeof(T).Name}> failed.", ex);
+                throw new DataLiteException(
+                    $"QueryListAsync<{typeof(T).Name}> failed.", ex);
             }
         }
 
-        #endregion
+        // ----------------------------------------------------------------
+        // Private helpers
+        // ----------------------------------------------------------------
 
-        #region DataReaderMapper 
-
-         /// <summary>
-         /// High Performance
-         /// Uses DbDataReader(forward-only, low memory) instead of DataTable.
-         /// 3x–6x faster than your old method for large datasets.
-         /// </summary>
-
-        private static class DataReaderMapper
+        /// <summary>Internal Execute using IDictionary (avoids parameter duplication).</summary>
+        private int ExecuteInternal(string sql, IDictionary<string, object> parameters)
         {
-            private static readonly Dictionary<Type, List<PropertyMapping>> _mappingCache =
-                new Dictionary<Type, List<PropertyMapping>>();
+            using var cmd = CreateSharedCommand(sql);
+            AddParameters(cmd, parameters);
+            return cmd.ExecuteNonQuery();
+        }
 
-            private class PropertyMapping
+        /// <summary>Internal Query using IDictionary.</summary>
+        private DataTable QueryInternal(string sql,
+                                        IDictionary<string, object>? parameters)
+        {
+            using var cmd = CreateSharedCommand(sql);
+            using var adapter = DbProviderFactories
+                                    .GetFactory(_db.SharedConnection)
+                                    .CreateDataAdapter()!;
+
+            AddParameters(cmd, parameters);
+            adapter.SelectCommand = cmd;
+
+            var dt = new DataTable();
+            adapter.Fill(dt);
+            return dt;
+        }
+
+        /// <summary>
+        /// Adds parameters to a command. Handles '@' prefix automatically.
+        /// Converts null values to DBNull.Value.
+        /// </summary>
+        private static void AddParameters(DbCommand cmd,
+                                          IDictionary<string, object>? parameters)
+        {
+            if (parameters == null || parameters.Count == 0) return;
+
+            foreach (var p in parameters)
             {
-                public PropertyInfo Property { get; set; } = null!;
-                public string ColumnName { get; set; } = string.Empty;
-                public Type PropertyType { get; set; } = null!;
-            }
-
-            public static List<T> MapToList<T>(DbDataReader reader) where T : new()
-            {
-                var list = new List<T>();
-                var type = typeof(T);
-
-                if (!_mappingCache.TryGetValue(type, out var mappings))
-                {
-                    mappings = new List<PropertyMapping>();
-
-                    foreach (var p in type.GetProperties().Where(prop => prop.CanWrite))
-                    {
-                        // Respect [Column("Name")] attribute if present
-                        var columnAttr = p.GetCustomAttribute<ColumnAttribute>();
-                        string colName = columnAttr?.Name ?? p.Name;
-
-                        mappings.Add(new PropertyMapping
-                        {
-                            Property = p,
-                            ColumnName = colName,
-                            PropertyType = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType
-                        });
-                    }
-
-                    _mappingCache[type] = mappings;
-                }
-
-                while (reader.Read())
-                {
-                    var obj = new T();
-
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        string dbColumnName = reader.GetName(i);
-
-                        // Find matching property by Column attribute or property name (case-insensitive)
-                        var mapping = mappings.FirstOrDefault(m =>
-                            string.Equals(m.ColumnName, dbColumnName, StringComparison.OrdinalIgnoreCase));
-
-                        if (mapping != null && !reader.IsDBNull(i))
-                        {
-                            try
-                            {
-                                var value = reader.GetValue(i);
-                                var convertedValue = Convert.ChangeType(value, mapping.PropertyType);
-                                mapping.Property.SetValue(obj, convertedValue);
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine(
-                                    $"Warning: Failed to map column '{dbColumnName}' to property '{mapping.Property.Name}' - {ex.Message}");
-                            }
-                        }
-                    }
-                    list.Add(obj);
-                }
-                return list;
+                var param = cmd.CreateParameter();
+                param.ParameterName = p.Key.StartsWith("@") ? p.Key : "@" + p.Key;
+                param.Value = p.Value ?? DBNull.Value;
+                cmd.Parameters.Add(param);
             }
         }
 
-        #endregion
-
+        /// <summary>Helper to create a named parameter without adding it yet.</summary>
+        private static DbParameter CreateParameter(DbCommand cmd,
+        //                        var value = reader.GetValue(i);
+        //                        var convertedValue = Convert.ChangeType(value, mapping.PropertyType);
+        //                        mapping.Property.SetValue(obj, convertedValue);
+        //                    }
+        //                    catch (Exception ex)
+        //                    {
+        //                        System.Diagnostics.Debug.WriteLine(
+        //                            $"Warning: Failed to map column '{dbColumnName}' to property '{mapping.Property.Name}' - {ex.Message}");
+        //                    }
+        //                }
+        //            }
+                                                    string name,
+                                                    object? value)
+        {
+            var param = cmd.CreateParameter();
+            param.ParameterName = name.StartsWith("@") ? name : "@" + name;
+            param.Value = value ?? DBNull.Value;
+            return param;
+        }
     }
-
 }
