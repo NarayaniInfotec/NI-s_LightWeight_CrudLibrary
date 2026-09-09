@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <Version>1.1.1.2</Version>
+    <Version>1.1.1.6</Version>
 	<PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>NarayaniInfotec.DataLite</RootNamespace>
     <Nullable>enable</Nullable>
@@ -13,13 +13,20 @@
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <AssemblyTitle>NarayaniInfotec.DataLite</AssemblyTitle>
-    <AssemblyVersion>1.0.1</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
-    <PackageReleaseNotes>Added generic CRUD operations (Insert, Update, Delete, Select).
-Introduced stored procedure execution support.
-Added transaction scope handling.
-Improved null-safety and API documentation.
-Enhanced database-agnostic design using DbProviderFactories.</PackageReleaseNotes>
+    <AssemblyVersion>1.0.6</AssemblyVersion>
+    <FileVersion>1.0.1.6</FileVersion>
+    <PackageReleaseNotes>- Added support for asynchronous database operations in CRUD methods.
+- Added support for asynchronous execution of stored procedures.
+- Added XML documentation comments for public API surface to remove missing XML comment warnings and improve IntelliSense:
+- StoredProcedures/SpParam.cs — documented Name, Value and constructor.
+- CRUD/ICrudRepository.cs — documented Execute, ExecuteAsync, Query, QueryAsync, InsertAndReturnId, SelectList/SelectListAsync, QueryList/QueryListAsync and related parameters/return values.
+- Extensions/DataTableExtensions.cs — documented class and ToList extension method.
+- Verified solution builds successfully after changes.</PackageReleaseNotes>
+    <Description>DataLite is a lightweight, database-agnostic CRUD utility library for .NET. It provides simple Insert, Update, Delete, and Select operations without requiring an ORM or database-specific code.</Description>
+    <PackageIcon>NewNI_Logo.jpeg</PackageIcon>
+    <RepositoryUrl>https://github.com/NarayaniInfotec/NI-s_LightWeight_CrudLibrary</RepositoryUrl>
+    <RepositoryType>Private</RepositoryType>
+    <PackageTags>DataLite; Fastest CRUD; lightweight, database-agnostic CRUD</PackageTags>
   </PropertyGroup>
 	<ItemGroup>
 	  <Content Include="Ni_Logo2.ico" />
@@ -31,6 +38,10 @@ Enhanced database-agnostic design using DbProviderFactories.</PackageReleaseNote
   </ItemGroup>
 
 	<ItemGroup>
+		<None Include="..\..\..\Downloads\NewNI_Logo.jpeg">
+		  <Pack>True</Pack>
+		  <PackagePath>\</PackagePath>
+		</None>
 		<None Include="README.md" Pack="true" PackagePath="" />
 		<None Include="CHANGELOG.md" Pack="true" PackagePath="" />
 	</ItemGroup>

@@ -3,6 +3,7 @@ using NarayaniInfotec.DataLite.Core;
 using NarayaniInfotec.DataLite.DataMapper;
 using NarayaniInfotec.DataLite.StoredProcedures;
 using NarayaniInfotec.Logging;
+using NarayaniInfotec.StoredProcedures;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -10,14 +11,14 @@ using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace NarayaniInfotec.StoredProcedures
+namespace NarayaniInfotec.DataLite.StoredProcedures
 {
     /// <summary>
     /// Default implementation of <see cref="IStoredProcedure"/>.
     ///
     /// Executes stored procedures in a database-agnostic manner using
     /// the <see cref="IDatabase"/> abstraction — identical to how
-    /// <see cref="NarayaniInfotec.CRUD.CrudRepository"/> operates for raw SQL.
+    /// <see cref="NarayaniInfotec.DataLite.CRUD.CrudRepository"/> operates for raw SQL.
     ///
     /// Supports:
     /// - Strongly typed List&lt;T&gt; (sync + async) via <see cref="DataReaderMapper"/>
@@ -36,8 +37,7 @@ namespace NarayaniInfotec.StoredProcedures
         /// Initializes a new instance of <see cref="StoredProcedure"/>.
         /// </summary>
         /// <param name="db">Database provider — same instance used by CrudRepository.</param>
-        /// <see cref="NarayaniInfotec.CRUD.CrudRepository"/> within one request.
-        /// </param>
+        /// <see cref="NarayaniInfotec.DataLite.CRUD.CrudRepository"/> within one request.
         /// <param name="logger">Optional query logger.</param>
         public StoredProcedure(IDatabase db, IDbLogger? logger = null)
         {
