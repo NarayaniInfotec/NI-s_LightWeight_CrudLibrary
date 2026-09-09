@@ -1,10 +1,8 @@
-﻿using NarayaniInfotec.CRUD;
-using NarayaniInfotec.StoredProcedures;
-using System;
+﻿using System;
 using System.Data;
 using System.Data.Common;
 
-namespace NarayaniInfotec.Core
+namespace NarayaniInfotec.DataLite.Core
 {
     /// <summary>
     /// Defines a database abstraction used by the DataLite library
@@ -20,7 +18,6 @@ namespace NarayaniInfotec.Core
     /// This allows DataLite to work with different database engines
     /// without changing the core CRUD logic.
     /// builder.Services.AddScoped&lt;IStoredProcedure, StoredProcedure&gt;();
-    /// </code>
     /// Because <c>IDatabase</c> is Scoped, both <c>CrudRepository</c> and
     /// <c>StoredProcedure</c> receive the <em>same</em> <c>IDatabase</c> instance
     /// within a request, and therefore share the same physical connection.

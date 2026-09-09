@@ -9,7 +9,7 @@ using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace NarayaniInfotec.CRUD
+namespace NarayaniInfotec.DataLite.CRUD
 {
     /// <summary>
     /// Default implementation of <see cref="ICrudRepository"/>.
@@ -29,8 +29,8 @@ namespace NarayaniInfotec.CRUD
         /// Database provider implementation responsible for
         /// creating connections and commands.
         /// </param>
-        /// <param name="logger">
         /// <param name="logger">Optional query logger.</param>
+        /// </summary>
         public CrudRepository(IDatabase db, IDbLogger? logger = null)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
@@ -140,10 +140,12 @@ namespace NarayaniInfotec.CRUD
         // ----------------------------------------------------------------
         // Query / QueryAsync
         // ----------------------------------------------------------------
-        /// </summary>
+
+        /// <summary>
         /// <param name="sql">A SQL statement to be executed.</param>
         /// <param name="parameters">Collection of parameters in Dictionary object.</param>
         /// <returns>Returns datatable as a result.</returns>
+        /// </summary>
         public DataTable Query(string sql, Dictionary<string, object> parameters)
         {
             try
@@ -177,10 +179,12 @@ namespace NarayaniInfotec.CRUD
         // ----------------------------------------------------------------
         // Insert / Update / Delete / Select
         // ----------------------------------------------------------------
-
+        /// <summary>
+        /// Inserts a new record into the specified table.
+        /// <param name="tableName">The name of the table into which to insert data.</param>
         /// <param name="fields">Dictionary of column names and values.
         /// Null values are converted to DBNull.</param>
-        /// <inheritdoc/>
+        /// </summary>
         public int Insert(string tableName, IDictionary<string, object> fields)
         {
             try
@@ -199,6 +203,7 @@ namespace NarayaniInfotec.CRUD
 
         /// <summary>
         /// <inheritdoc/>
+        /// </summary>
         public int Update(string tableName,
                           IDictionary<string, object> fields,
                           string whereClause,

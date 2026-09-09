@@ -2,7 +2,7 @@
 using System.Data;
 using System.Threading.Tasks;
 
-namespace NarayaniInfotec.CRUD
+namespace NarayaniInfotec.DataLite.CRUD
 {
 
     /// <summary>
@@ -25,35 +25,35 @@ namespace NarayaniInfotec.CRUD
     public interface ICrudRepository
     {
         /// <summary>
-        /// 
+        /// Executes a non-query SQL statement (INSERT, UPDATE, DELETE) and returns the number of affected rows.
         /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
+        /// <param name="sql">The SQL statement to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>The number of rows affected by the statement.</returns>
         int Execute(string sql, Dictionary<string, object> parameters);
         
         /// <summary>
-        /// 
+        /// Asynchronously executes a non-query SQL statement and returns the number of affected rows.
         /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
+        /// <param name="sql">The SQL statement to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result is the number of rows affected.</returns>
         Task<int> ExecuteAsync(string sql, Dictionary<string, object> parameters);
 
         /// <summary>
-        /// 
+        /// Executes a SQL query and returns the result set as a DataTable.
         /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
+        /// <param name="sql">The SQL query to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>A DataTable containing the query results.</returns>
         DataTable Query(string sql, Dictionary<string, object> parameters);
        
         /// <summary>
-        /// 
+        /// Asynchronously executes a SQL query and returns the result set as a DataTable.
         /// </summary>
-        /// <param name="sql"></param>
-        /// <param name="parameters"></param>
-        /// <returns></returns>
+        /// <param name="sql">The SQL query to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result is a DataTable containing the query results.</returns>
         Task<DataTable> QueryAsync(string sql, Dictionary<string, object> parameters);
 
         //new definitions. - 21st Dec. 2025 2026
@@ -124,17 +124,56 @@ namespace NarayaniInfotec.CRUD
         /// <returns>A task representing the asyncronous operation</returns>
         Task<int> ExecuteScalarAsync(string sql, Dictionary<string, object> parameters); //Added. - 01st Jan. 2026 0530
 
+        /// <summary>
+        /// Inserts a new record into the specified table and returns the generated identity value.
+        /// </summary>
+        /// <param name="tableName">Target table name.</param>
+        /// <param name="values">Columns and values to insert.</param>
+        /// <param name="identityColumn">Name of the identity/auto-increment column to return (default: "Id").</param>
+        /// <returns>The generated identity value as an integer.</returns>
         int InsertAndReturnId(string tableName, IDictionary<string, object> values, string identityColumn = "Id");   //Added. - 01st Jan. 2026 0548
 
         // Add these methods for return List<T> and Task<List<T>> for SelectList, SelectListAsync and QueryList -11 July 2026
+        /// <summary>
+        /// Selects records from the specified table and maps each row to an instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type to map each data row to. Must have a parameterless constructor.</typeparam>
+        /// <param name="tableName">Target table name.</param>
+        /// <param name="columns">Comma-separated list of columns to select. Use "*" to select all columns.</param>
+        /// <param name="whereClause">Optional SQL WHERE condition without the 'WHERE' keyword.</param>
+        /// <param name="whereParams">Optional parameters for the WHERE clause.</param>
+        /// <returns>List of mapped objects of type <typeparamref name="T"/>.</returns>
         List<T> SelectList<T>(string tableName, string columns = "*", string? whereClause = null,
                              IDictionary<string, object>? whereParams = null) where T : new();
 
+        /// <summary>
+        /// Asynchronously selects records from the specified table and maps each row to an instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type to map each data row to. Must have a parameterless constructor.</typeparam>
+        /// <param name="tableName">Target table name.</param>
+        /// <param name="columns">Comma-separated list of columns to select. Use "*" to select all columns.</param>
+        /// <param name="whereClause">Optional SQL WHERE condition without the 'WHERE' keyword.</param>
+        /// <param name="whereParams">Optional parameters for the WHERE clause.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result is a list of mapped objects of type <typeparamref name="T"/>.</returns>
         Task<List<T>> SelectListAsync<T>(string tableName, string columns = "*", string? whereClause = null,
                                         IDictionary<string, object>? whereParams = null) where T : new();
 
+        /// <summary>
+        /// Executes a SQL query and maps each result row to an instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type to map each data row to. Must have a parameterless constructor.</typeparam>
+        /// <param name="sql">The SQL query to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>List of mapped objects of type <typeparamref name="T"/>.</returns>
         List<T> QueryList<T>(string sql, Dictionary<string, object> parameters) where T : new();
 
+        /// <summary>
+        /// Asynchronously executes a SQL query and maps each result row to an instance of <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">Type to map each data row to. Must have a parameterless constructor.</typeparam>
+        /// <param name="sql">The SQL query to execute.</param>
+        /// <param name="parameters">Dictionary of parameter names and values.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result is a list of mapped objects of type <typeparamref name="T"/>.</returns>
         Task<List<T>> QueryListAsync<T>(string sql, Dictionary<string, object> parameters) where T : new();
     }
 }

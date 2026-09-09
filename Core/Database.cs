@@ -1,11 +1,13 @@
-﻿using System;
+﻿using NarayaniInfotec.Core;
+using NarayaniInfotec.DataLite.Core;
+using System;
 using System.Data;
 using System.Data.Common;
 
-namespace NarayaniInfotec.Core
+namespace NarayaniInfotec.DataLite.Core
 {
     /// <summary>
-    /// 
+    /// The <see cref="Database"/> class provides a database-agnostic implementation of <see cref="IDatabase"/>,
     /// </summary>
     public class Database : IDatabase
     {
