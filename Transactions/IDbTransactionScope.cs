@@ -1,8 +1,9 @@
 ﻿using NarayaniInfotec.Core;
+using NarayaniInfotec.DataLite.Core;
 using System;
 using System.Data.Common;
 
-namespace NarayaniInfotec.Transactions
+namespace NarayaniInfotec.DataLite.Transactions
 {
     /// <summary>
     /// Provides a lightweight transactional scope that wraps the
@@ -13,10 +14,10 @@ namespace NarayaniInfotec.Transactions
     /// It is intended to be used with a <c>using</c> statement to ensure
     /// proper commit, rollback, and resource cleanup.
     /// </remarks>
+    /// </summary>  
     public class DbTransactionScope : IDisposable
     {
         /// <summary>Gets the active database connection associated with the transaction.</summary>
-        /// </summary>
         public DbConnection Connection { get; }
 
         /// <summary>The active transaction.</summary>
@@ -28,12 +29,7 @@ namespace NarayaniInfotec.Transactions
         /// Begins a transaction on <see cref="IDatabase.SharedConnection"/>.
         /// The connection is already open — no Open() call is made here.
         /// </summary>
-        /// <param name="db">
-        /// <param name="db">An implementation of <see cref="IDatabase"/> used to create the database connection.</param>
-        /// <see cref="NarayaniInfotec.CRUD.CrudRepository"/> and
-        /// <see cref="NarayaniInfotec.StoredProcedures.StoredProcedure"/> within
-        /// the current DI scope.
-        /// </param>
+        /// <param name="db">An implementation of <see cref="IDatabase"/> used to create the database connection and within the current DI scope.</param>
         public DbTransactionScope(IDatabase db)
         {
             if (db == null) throw new ArgumentNullException(nameof(db));
@@ -48,6 +44,7 @@ namespace NarayaniInfotec.Transactions
         /// <summary>Rolls back the current database transaction.</summary>
         public void Rollback() => Transaction.Rollback();
 
+        /// <summary>
         /// Disposes the transaction object only.
         /// The underlying connection is owned by <see cref="IDatabase"/>
         /// and will be disposed by the DI container at scope end.
